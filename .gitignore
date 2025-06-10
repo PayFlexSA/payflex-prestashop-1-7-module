@@ -1,0 +1,50 @@
+# PrestaShop specific files
+cron.log
+cache.txt
+
+# IDE & System Related Files
+.buildpath
+.project
+.settings
+.DS_Store
+.idea
+*.sublime-project
+*.sublime-workspace
+.vscode
+*.swp
+*.swo
+
+# Composer
+/vendor/
+composer.phar
+
+# Node/NPM
+/node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+
+# Build files
+*.map
+*.css.map
+*.js.map
+.sass-cache/
+
+# Test related
+/tests/coverage/
+phpunit.xml
+
+# Temporary files
+*~
+*.tmp
+*.bak
+.php_cs.cache
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Documentation
+/docs/
