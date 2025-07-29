@@ -23,9 +23,10 @@
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  *  International Registered Trademark & Property of PrestaShop SA
  */
-
-use PrestaShop\PrestaShop\Core\Payment\PaymentOption;
 include_once(_PS_MODULE_DIR_.'PayFlex/PayFlexService.php');
+
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+ini_set('display_errors', '1');
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -34,6 +35,8 @@ if (!defined('_PS_VERSION_')) {
 class PayFlex extends PaymentModule
 {
     protected $config_form = false;
+    public $bootstrap;
+    public $confirmUninstall;
 
     public function __construct()
     {
@@ -269,11 +272,11 @@ class PayFlex extends PaymentModule
     protected function getConfigFormValues()
     {
         return array(
-            'PAYFLEX_LIVE_MODE' => Configuration::get('PAYFLEX_LIVE_MODE', true),
-            'PAYFLEX_PRODUCTION' => Configuration::get('PAYFLEX_PRODUCTION', false),
-            'PAYFLEX_CLIENTID' => Configuration::get('PAYFLEX_CLIENTID', null),
-            'PAYFLEX_SECRET' => Configuration::get('PAYFLEX_SECRET', null),
-            'PAYFLEX_WIDGET_ENABLE' => Configuration::get('PAYFLEX_WIDGET_ENABLE', null),
+            'PAYFLEX_LIVE_MODE'     => Configuration::get('PAYFLEX_LIVE_MODE', false),
+            'PAYFLEX_PRODUCTION'    => Configuration::get('PAYFLEX_PRODUCTION', false),
+            'PAYFLEX_CLIENTID'      => Configuration::get('PAYFLEX_CLIENTID', null),
+            'PAYFLEX_SECRET'        => Configuration::get('PAYFLEX_SECRET', null),
+            'PAYFLEX_WIDGET_ENABLE' => Configuration::get('PAYFLEX_WIDGET_ENABLE', false),
             'PAYFLEX_MERCHANT_NAME' => Configuration::get('PAYFLEX_MERCHANT_NAME', null),
         );
     }
@@ -310,14 +313,43 @@ class PayFlex extends PaymentModule
         $this->context->controller->addCSS($this->_path . '/views/css/front.css');
     }
 
+    /**
+     * Prestashop 1.6 uses this hook to display the payment options
+     * during the checkout process.
+     */
+    public function hookPayment($params)
+    {   
+       
+        if(!Configuration::get('PAYFLEX_LIVE_MODE'))
+            return;
+        // $currency_id = $params['cart']->id_currency;
+        // $currency = new Currency((int)$currency_id);
+
+        // if (in_array($currency->iso_code, $this->limited_currencies) == false)
+        //     return false;
+
+        $this->smarty->assign('module_dir', $this->_path);
+
+        return $this->display(__FILE__, 'views/templates/hook/payment.tpl');
+       
+    }
+
+    /**
+     * Prestashop 1.7 uses this hook to display the payment options
+     * during the checkout process.
+     */
     public function hookPaymentOptions($params)
     {
         $live = Configuration::get('PAYFLEX_LIVE_MODE', true);
         if ($live != false) {
-            // $this->smarty->assign(
-            //     $this->getTemplateVars()
-            // );
-            $newOption = new PaymentOption();
+
+            /** @disregard P1009
+             * This is the new way to create a payment option in PrestaShop 1.7.
+             * It allows you to set the module name, logo, action URL, and additional information.
+             * In Prestashop 1.6, this will throw an error, however 1.6 calls the hookPayment() instead of hookPaymentOptions()
+             * so it will not be used.
+             */
+            $newOption = new \PrestaShop\PrestaShop\Core\Payment\PaymentOption();
             $newOption->setModuleName($this->name)
                 // ->setCallToActionText('Pay with PayFlex')
                 ->setLogo(Media::getMediaPath(_PS_MODULE_DIR_ . $this->name . '/checkout.png'))
@@ -328,25 +360,7 @@ class PayFlex extends PaymentModule
         }
     }
 
-    /**
-     * This method is used to render the payment button,
-     * Take care if the button should be displayed or not.
-     */
-    public function hookPayment($params)
-    {
-        // $currency_id = $params['cart']->id_currency;
-        // $currency = new Currency((int)$currency_id);
-
-        // if (in_array($currency->iso_code, $this->limited_currencies) == false)
-        //     return false;
-
-        // $this->smarty->assign('module_dir', $this->_path);
-
-        // return $this->display(__FILE__, 'views/templates/hook/payment.tpl');
-        // return 'PayFlex:hookPayment';
-    }
-
-    /**
+    /** 
      * This hook is used to display the order confirmation page.
      */
     public function hookPaymentReturn($params)
@@ -389,13 +403,13 @@ class PayFlex extends PaymentModule
     }
 
     /* Called when needing to build a list of the available payment solutions,
-    during the order process. Ideal location to enable the choice of a payment module
-    that you have developed. */
-    public function hookDisplayPayment()
-    {
-        /* Place your code here. */
-        // return 'PayFlex:hookDisplayPayment';
-    }
+     during the order process. Ideal location to enable the choice of a payment module
+     that you have developed. */
+    // public function hookDisplayPayment()
+    // {  
+    //     /* Place your code here. */
+    //     // return 'PayFlex:hookDisplayPayment';
+    // }
 
     public function hookDisplayProductButtons()
     {
@@ -406,16 +420,16 @@ class PayFlex extends PaymentModule
     public function hookDisplayProductAdditionalInfo($params)
     {
         if (Configuration::get('PAYFLEX_WIDGET_ENABLE')) {
-            $prod = Configuration::get('PAYFLEX_PRODUCTION', false);
-            $clientId = Configuration::get('PAYFLEX_CLIENTID', null);
-            $secret = Configuration::get('PAYFLEX_SECRET', null);
-            $env = $prod ? 'production' : 'develop';
-            $ppService = new PayFlexService($env, $clientId, $secret);
+            $prod          = Configuration::get('PAYFLEX_PRODUCTION', false);
+            $clientId      = Configuration::get('PAYFLEX_CLIENTID', null);
+            $secret        = Configuration::get('PAYFLEX_SECRET', null);
+            $env           = $prod ? 'production' : 'develop';
+            $ppService     = new PayFlexService($env, $clientId, $secret);
             $configuration = $ppService->getMerchantConfiguration();
-            $minimumAmount =  $configuration->minimumAmount;
+            $minimumAmount = $configuration->minimumAmount;
             $maximumAmount = $configuration->maximumAmount;
-            $price = $params['product']['price_amount'];
-            return '<script type="text/javascript" src="https://widgets.payflex.co.za/' . Configuration::get('PAYFLEX_MERCHANT_NAME') . '/payflex-widget-2.0.0.js?type=calculator&min='.$minimumAmount.'&max='.$maximumAmount.'&amount=' . $price . '"></script>';
+            $price         = $params['product']['price_amount'];
+            return '<script type="text/javascript" src="https://widgets.payflex.co.za/' . Configuration::get('PAYFLEX_MERCHANT_NAME') . '/payflex-widget-2.0.1.js?type=calculator&min='.$minimumAmount.'&max='.$maximumAmount.'&amount=' . $price . '"></script>';
         }
     }
 }

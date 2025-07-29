@@ -36,9 +36,9 @@ class PayFlexRedirectModuleFrontController extends ModuleFrontController
         
 
         $live = Configuration::get('PAYFLEX_LIVE_MODE', true);
-        if($live == false) {
-            return $this->displayError('PayFlex is not set to live');
-        }
+        // if($live == false) {
+        //     return $this->displayError('PayFlex is not set to live');
+        // }
         $prod = Configuration::get('PAYFLEX_PRODUCTION', false);
         $clientId = Configuration::get('PAYFLEX_CLIENTID', null);
         $secret = Configuration::get('PAYFLEX_SECRET', null);
